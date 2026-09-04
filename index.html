@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KSH Ledger — စာရင်း</title>
+<style>
+:root{--bg:#eef2f7;--card:#ffffff;--pri:#2563eb;--pri-d:#1d4ed8;--ok:#16a34a;--ok-d:#15803d;--bad:#dc2626;--bad-d:#b91c1c;--txt:#1e293b;--muted:#64748b;--line:#e2e8f0;--head:#1e3a8a;--head2:#3b82f6;--zebra:#f8fafc;--total:#fff7ed;--total-b:#fdba74;--shadow:0 1px 3px rgba(15,23,42,.08),0 8px 22px rgba(15,23,42,.07)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans Myanmar",system-ui,sans-serif;color:var(--txt);padding:16px;font-size:14px;min-height:100vh;
+  background:radial-gradient(1200px 600px at 100% -10%,#e0eaff 0,transparent 60%),radial-gradient(900px 520px at -10% 0,#eaf1ff 0,transparent 55%),var(--bg)}
+h1{font-size:20px;margin-bottom:14px;display:flex;align-items:center;gap:10px;letter-spacing:.2px}
+h1::before{content:"";width:10px;height:26px;border-radius:6px;background:linear-gradient(180deg,var(--head2),var(--head));display:inline-block}
+/* Tabs — segmented control */
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;background:#fff;padding:6px;border-radius:14px;box-shadow:var(--shadow);border:1px solid var(--line);align-items:center}
+.tabs button{padding:9px 16px;border:1px solid transparent;background:transparent;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);transition:.18s ease}
+.tabs button:hover{background:#f1f5f9;color:var(--txt)}
+.tabs button.active{background:linear-gradient(180deg,var(--head2),var(--pri));color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(37,99,235,.35)}
+.tabs button.lang-toggle{margin-left:auto;background:#eef2f7;color:var(--txt);border:1px solid var(--line);font-weight:600}
+.tabs button.lang-toggle:hover{background:#e2e8f0}
+/* Cards */
+.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:16px;overflow-x:auto;border:1px solid var(--line)}
+/* Tables */
+table{border-collapse:separate;border-spacing:0;width:100%;min-width:640px;font-size:13px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{background:linear-gradient(180deg,var(--head2),var(--head));color:#fff;font-size:12px;font-weight:700;position:sticky;top:0;z-index:2;letter-spacing:.3px}
+th:first-child{border-top-left-radius:12px}
+th:last-child{border-top-right-radius:12px}
+td:first-child,th:first-child{text-align:left}
+tbody tr:nth-child(even):not(.total-row){background:var(--zebra)}
+tbody tr:hover:not(.total-row){background:#eff6ff}
+.total-row td{font-weight:800;background:var(--total);border-top:2px solid var(--total-b)}
+.total-row td:first-child{border-bottom-left-radius:12px}
+.total-row td:last-child{border-bottom-right-radius:12px}
+.neg{color:var(--bad)}
+/* Inputs */
+input{width:92px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;text-align:right;font-size:13px;background:#fff;transition:.15s}
+input:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px rgba(37,99,235,.18)}
+input.name{width:150px;text-align:left}
+select,input[type=date],input[type=month],input[type=text]{padding:9px 12px;border:2px solid #93c5fd;border-radius:11px;background:#f6fbff;font-size:14px;font-weight:600;color:var(--txt);transition:.15s}
+select{cursor:pointer;min-width:170px}
+input[type=date],input[type=month]{width:auto;min-width:158px}
+select:hover,input[type=date]:hover,input[type=month]:hover{border-color:#3b82f6;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+select:focus,input[type=date]:focus,input[type=month]:focus,input[type=text]:focus{outline:none;border-color:var(--pri);background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.20)}
+/* Data-entry boxes — must read as "type here" at a glance */
+td.has-input{background:#e8f2ff;padding:6px 8px}
+th.ed{background:linear-gradient(180deg,#5aa9ff,var(--head))}
+th.ed::after{content:" ✎";opacity:.95;font-weight:400;font-size:11px}
+input.cell{width:100%;min-width:92px;padding:9px 11px;border:2px solid #93c5fd;border-radius:10px;background:#f6fbff;color:var(--txt);text-align:right;font-size:14px;font-weight:600;transition:.15s}
+input.cell::placeholder{color:#7e9cc4;font-weight:500;font-size:12.5px}
+input.cell:placeholder-shown{border-style:dashed;border-color:#9cc0f5;background:#f2f8ff}
+input.cell:hover{border-color:#3b82f6;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+input.cell:focus{outline:none;border-style:solid;border-color:var(--pri);background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.22)}
+input.cell.auto{background:#eef2f7;border-color:#cbd5e1;color:var(--muted)}
+input.cell.auto:placeholder-shown{border-style:solid}
+input.cell.auto:focus{background:#fff;color:var(--txt);border-color:var(--pri)}
+#c-new{width:260px;padding:10px 13px;border:2px dashed #93c5fd;border-radius:11px;font-size:14.5px;font-weight:600;background:#f6fbff;color:var(--txt)}
+#c-new::placeholder{color:#7e9cc4;font-weight:500}
+#c-new:focus{outline:none;border-style:solid;border-color:var(--pri);background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.20)}
+/* Highlighted "enter data here" panel used on Daily + Manage Customers */
+.addbox{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:linear-gradient(180deg,#f5f9ff,#e9f1ff);border:2px dashed #93c5fd;border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.addbox-title{font-size:13px;font-weight:700;color:var(--head);white-space:nowrap}
+.addbox .acc-col{flex:1 1 240px;max-width:100%;margin-top:0}
+.daybox{border-style:solid;border-color:#bfdbfe;background:linear-gradient(180deg,#f8fbff,#eff5ff)}
+.hint{display:flex;gap:8px;align-items:flex-start;background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid var(--pri);color:#1e40af;padding:9px 12px;border-radius:10px;font-size:12.5px;line-height:1.55;margin-bottom:12px}
+/* Buttons */
+.btn{padding:8px 14px;border:none;border-radius:9px;background:var(--pri);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;box-shadow:0 2px 6px rgba(37,99,235,.25)}
+.btn:hover{background:var(--pri-d);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-ok{background:var(--ok);box-shadow:0 2px 6px rgba(22,163,74,.25)}
+.btn-ok:hover{background:var(--ok-d)}
+.btn-del{background:var(--bad);padding:4px 10px;font-size:12px;box-shadow:0 2px 6px rgba(220,38,38,.25)}
+.btn-del:hover{background:var(--bad-d)}
+/* Misc */
+.small{font-size:12px;color:var(--muted);line-height:1.5}
+.cname{cursor:pointer;color:var(--pri);font-weight:700}
+.cname:hover{text-decoration:underline;color:var(--pri-d)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+/* Account card uses the same "type here" language as the ledger tables */
+#account-card input{width:100%;padding:10px 13px;border:2px dashed #93c5fd;border-radius:11px;background:#f6fbff;font-size:14.5px;font-weight:600;color:var(--txt);text-align:left;transition:.15s}
+#account-card input::placeholder{color:#7e9cc4;font-weight:500}
+#account-card input:not(:placeholder-shown){border-style:solid}
+#account-card input:hover{border-color:#3b82f6;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+#account-card input:focus{outline:none;border-style:solid;border-color:var(--pri);background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.22)}
+.acc-col{display:flex;flex-direction:column;gap:10px;max-width:360px;margin-top:4px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:999px;opacity:0;transition:.3s;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:50}
+@media(max-width:640px){input{width:74px}.tabs{font-size:12px}.tabs button{padding:8px 12px}}
+</style>
+</head>
+<body>
+<h1>📊 KSH Ledger</h1>
+<div class="tabs">
+  <button data-t="day" class="active" data-i18n="tab_day">နေ့စဉ်</button>
+  <button data-t="month" data-i18n="tab_month">လစဉ်</button>
+  <button data-t="customer" data-i18n="tab_customer_view">Customer ကြည့်ရန်</button>
+  <button data-t="all" data-i18n="tab_all">စုစုပေါင်း</button>
+  <button data-t="cust" data-i18n="tab_customer_manage">Customer စီမံ</button>
+  <button data-t="account" data-i18n="tab_account">အကောင့်</button>
+  <button id="lang-toggle" class="lang-toggle" data-i18n="lang_toggle">English</button>
+</div>
+
+<div id="v-day" class="view">
+  <div class="card">
+    <div class="addbox daybox">
+      <span class="addbox-title" data-i18n="day_date_title">📅 ရက်စွဲ ရွေးပါ</span>
+      <input type="date" id="d-date">
+      <span class="small" id="d-info"></span>
+    </div>
+    <div class="hint" data-i18n="hint_day">✏️ Bird / Viss / Price အကွက်တွေမှာ နှိပ်ပြီး စာရင်းထည့်ပါ — Amount ကို Viss × Price အလိုအလျောက် တွက်ပေးမယ်</div>
+    <table id="d-table"></table>
+    <p class="small" style="margin-top:6px" data-i18n="day_note">Amount = Viss × Price (auto) · Credit = ဖောက်သည်ထံမှ ရငွေ (ပေးငွေ) — ကျန်ငွေကို လျှော့သည် · Opening = ယခင် လက်ကျန် · Discount = ၁ပိဿာလျှင် လျှော့မည့် ငွေ</p>
+  </div>
+</div>
+
+<div id="v-month" class="view" style="display:none">
+  <div class="card">
+    <div class="addbox daybox">
+      <span class="addbox-title" data-i18n="month_pick_title">📅 လ ရွေးပါ</span>
+      <input type="month" id="m-month">
+      <span class="small" id="m-info"></span>
+    </div>
+    <table id="m-table"></table>
+  </div>
+</div>
+
+<div id="v-customer" class="view" style="display:none">
+  <div class="card">
+    <div class="addbox daybox">
+      <span class="addbox-title" data-i18n="cust_pick_title">👤 ဖောက်သည် ရွေးပါ</span>
+      <select id="customer-select"></select>
+      <input type="month" id="customer-month">
+      <span class="small" id="customer-info"></span>
+    </div>
+    <table id="customer-table"></table>
+  </div>
+</div>
+
+<div id="v-all" class="view" style="display:none">
+  <div class="card">
+    <div class="addbox daybox">
+      <span class="addbox-title" data-i18n="all_title">📊 စုစုပေါင်း</span>
+      <button class="btn" id="a-refresh" data-i18n="btn_refresh">ပြန်တွက်</button>
+      <span class="small" data-i18n="all_note">Opening + ရောင်းရငွေ − Credit − (Viss × Discount) = ကျန်ငွေ</span>
+    </div>
+    <table id="a-table"></table>
+  </div>
+</div>
+
+<div id="v-cust" class="view" style="display:none">
+  <div class="card">
+    <div class="addbox">
+      <span class="addbox-title" data-i18n="cust_add_title">➕ ဖောက်သည် အသစ် ထည့်ရန်</span>
+      <input type="text" id="c-new" placeholder="ဖောက်သည် အမည်" data-i18n-ph="ph_name">
+      <button class="btn" id="c-add" data-i18n="btn_add">+ ထည့်</button>
+    </div>
+    <div class="bar">
+      <button class="btn btn-ok" id="c-export" data-i18n="btn_backup">Backup ဒေါင်းလုဒ်</button>
+      <label class="btn" style="background:#64748b"><span data-i18n="btn_import">Import JSON</span><input type="file" id="c-import" accept=".json" hidden></label>
+      <button class="btn btn-del" id="c-delall" data-i18n="btn_delall">🗑 စာရင်းအာလုံးကိုဖြတ်မည်</button>
+    </div>
+    <div class="hint" data-i18n="hint_cust">✏️ အမည်ထည့်ပြီး “+ ထည့်” နှိပ်ပါ · Opening / Discount အကွက်တွေမှာ တိုက်ရိုက် ပြင်လို့ရတယ်</div>
+    <table id="c-table"></table>
+  </div>
+</div>
+
+<div id="v-account" class="view" style="display:none"><div class="card" id="account-card"></div></div>
+<div id="toast"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const SEED = {"customers": [{"name": "Ma Pyae Pyae Win", "closing": 444800, "discount": 69000, "entries": [{"date": "2022-01-02", "bird": 14, "viss": 32.4, "price": 4150, "amount": 134500, "credit": 200500}, {"date": "2022-01-04", "bird": 21, "viss": 50.98, "price": 4150, "amount": 211600, "credit": 200000}, {"date": "2022-01-06", "bird": 28, "viss": 69.54, "price": 3950, "amount": 274700, "credit": 0}, {"date": "2022-01-08", "bird": 21, "viss": 42.98, "price": 3950, "amount": 169800, "credit": 475300}, {"date": "2022-01-10", "bird": 21, "viss": 40.56, "price": 3950, "amount": 160200, "credit": 0}, {"date": "2022-01-12", "bird": 28, "viss": 53.16, "price": 3950, "amount": 210000, "credit": 180800}, {"date": "2022-01-14", "bird": 28, "viss": 57.64, "price": 3950, "amount": 227700, "credit": 160200}, {"date": "2022-01-16", "bird": 14, "viss": 29.02, "price": 3850, "amount": 111700, "credit": 210000}, {"date": "2022-01-18", "bird": 28, "viss": 60.42, "price": 3850, "amount": 232600, "credit": 227700}, {"date": "2022-01-20", "bird": 21, "viss": 36.38, "price": 3850, "amount": 140100, "credit": 232600}, {"date": "2022-01-24", "bird": 28, "viss": 53.54, "price": 3750, "amount": 200800, "credit": 140100}, {"date": "2022-01-26", "bird": 28, "viss": 50, "price": 3750, "amount": 187500, "credit": 0}, {"date": "2022-01-28", "bird": 21, "viss": 42.22, "price": 3750, "amount": 158300, "credit": 388300}, {"date": "2022-01-30", "bird": 35, "viss": 71.32, "price": 3750, "amount": 267500, "credit": 158300}]}, {"name": "Ma Cho Htwe", "closing": 780300, "discount": 72800, "entries": [{"date": "2022-01-02", "bird": 35, "viss": 91.24, "price": 4150, "amount": 378600, "credit": 227400}, {"date": "2022-01-06", "bird": 42, "viss": 105.32, "price": 3950, "amount": 416000, "credit": 378600}, {"date": "2022-01-10", "bird": 49, "viss": 98.12, "price": 3950, "amount": 387600, "credit": 416000}, {"date": "2022-01-14", "bird": 49, "viss": 97, "price": 3950, "amount": 383200, "credit": 387600}, {"date": "2022-01-18", "bird": 49, "viss": 103.14, "price": 3850, "amount": 397100, "credit": 383200}, {"date": "2022-01-22", "bird": 56, "viss": 97.42, "price": 3750, "amount": 365300, "credit": 397100}, {"date": "2022-01-28", "bird": 70, "viss": 135.4, "price": 3750, "amount": 507800, "credit": 365300}]}, {"name": "Ma Htay Htay Sint", "closing": 422000, "discount": 0, "entries": []}, {"name": "Ma War War Htay", "closing": 203300, "discount": 0, "entries": []}, {"name": "K Khaing Ngae", "closing": 28900, "discount": 0, "entries": []}, {"name": "Ma Khin Moe Win", "closing": 649900, "discount": 50000, "entries": [{"date": "2022-01-02", "bird": 35, "viss": 86.48, "price": 4150, "amount": 358900, "credit": 400000}, {"date": "2022-01-04", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 200000}, {"date": "2022-01-06", "bird": 14, "viss": 34.44, "price": 3950, "amount": 136000, "credit": 136000}, {"date": "2022-01-08", "bird": 21, "viss": 42.84, "price": 3950, "amount": 169200, "credit": 169200}, {"date": "2022-01-10", "bird": 14, "viss": 28.66, "price": 3950, "amount": 113200, "credit": 113200}, {"date": "2022-01-12", "bird": 21, "viss": 44, "price": 3950, "amount": 173800, "credit": 174000}, {"date": "2022-01-16", "bird": 14, "viss": 29.92, "price": 3850, "amount": 115200, "credit": 115000}, {"date": "2022-01-18", "bird": 14, "viss": 28.74, "price": 3850, "amount": 110600, "credit": 110600}, {"date": "2022-01-22", "bird": 14, "viss": 25.14, "price": 3750, "amount": 94300, "credit": 94300}, {"date": "2022-01-24", "bird": 21, "viss": 39.8, "price": 3750, "amount": 149300, "credit": 149200}, {"date": "2022-01-26", "bird": 14, "viss": 26.38, "price": 3750, "amount": 98900, "credit": 0}, {"date": "2022-01-28", "bird": 14, "viss": 27.96, "price": 3750, "amount": 104900, "credit": 203900}, {"date": "2022-01-30", "bird": 42, "viss": 85.7, "price": 3750, "amount": 321400, "credit": 311400}]}, {"name": "Ma Yin Aye", "closing": 281900, "discount": 0, "entries": []}, {"name": "Ma Lin Zar Aye", "closing": 241600, "discount": 5500, "entries": [{"date": "2022-01-06", "bird": 7, "viss": 16.78, "price": 3950, "amount": 66300, "credit": 67000}, {"date": "2022-01-12", "bird": 7, "viss": 13.86, "price": 3950, "amount": 54700, "credit": 55000}, {"date": "2022-01-26", "bird": 7, "viss": 12.34, "price": 3750, "amount": 46300, "credit": 46300}, {"date": "2022-01-28", "bird": 7, "viss": 12.1, "price": 3750, "amount": 45400, "credit": 45400}]}, {"name": "Ma Kyi Thar", "closing": 393500, "discount": 109600, "entries": [{"date": "2022-01-02", "bird": 35, "viss": 91.12, "price": 4150, "amount": 378100, "credit": 246200}, {"date": "2022-01-04", "bird": 28, "viss": 71, "price": 4150, "amount": 294700, "credit": 378100}, {"date": "2022-01-06", "bird": 35, "viss": 85.96, "price": 3950, "amount": 339500, "credit": 294700}, {"date": "2022-01-08", "bird": 42, "viss": 86.5, "price": 3950, "amount": 341700, "credit": 339500}, {"date": "2022-01-10", "bird": 35, "viss": 72.3, "price": 3950, "amount": 285600, "credit": 341700}, {"date": "2022-01-12", "bird": 35, "viss": 74.92, "price": 3950, "amount": 295900, "credit": 285600}, {"date": "2022-01-14", "bird": 21, "viss": 41.68, "price": 3950, "amount": 164600, "credit": 295900}, {"date": "2022-01-16", "bird": 42, "viss": 87, "price": 3850, "amount": 335000, "credit": 164600}, {"date": "2022-01-18", "bird": 21, "viss": 45.44, "price": 3850, "amount": 174900, "credit": 335000}, {"date": "2022-01-20", "bird": 42, "viss": 72.8, "price": 3850, "amount": 280300, "credit": 174900}, {"date": "2022-01-22", "bird": 21, "viss": 35.4, "price": 3750, "amount": 132800, "credit": 280300}, {"date": "2022-01-24", "bird": 48, "viss": 95, "price": 3750, "amount": 356300, "credit": 132800}, {"date": "2022-01-26", "bird": 42, "viss": 76.6, "price": 3750, "amount": 287300, "credit": 356300}, {"date": "2022-01-28", "bird": 21, "viss": 39.04, "price": 3750, "amount": 146400, "credit": 0}, {"date": "2022-01-30", "bird": 56, "viss": 120.82, "price": 3750, "amount": 453100, "credit": 383700}]}, {"name": "Ma Cho Than", "closing": 405400, "discount": 134700, "entries": [{"date": "2022-01-02", "bird": 28, "viss": 72.5, "price": 4150, "amount": 300900, "credit": 78300}, {"date": "2022-01-04", "bird": 35, "viss": 86.08, "price": 4150, "amount": 357200, "credit": 300900}, {"date": "2022-01-06", "bird": 28, "viss": 69.5, "price": 3950, "amount": 274500, "credit": 357200}, {"date": "2022-01-08", "bird": 28, "viss": 57.94, "price": 3950, "amount": 228900, "credit": 274500}, {"date": "2022-01-10", "bird": 28, "viss": 59.58, "price": 3950, "amount": 235300, "credit": 228900}, {"date": "2022-01-12", "bird": 49, "viss": 107.86, "price": 3950, "amount": 426000, "credit": 235300}, {"date": "2022-01-14", "bird": 49, "viss": 99.22, "price": 3950, "amount": 391900, "credit": 426100}, {"date": "2022-01-16", "bird": 49, "viss": 101.54, "price": 3850, "amount": 390900, "credit": 391900}, {"date": "2022-01-18", "bird": 49, "viss": 101.68, "price": 3850, "amount": 391500, "credit": 391000}, {"date": "2022-01-20", "bird": 49, "viss": 83.12, "price": 3850, "amount": 320000, "credit": 391500}, {"date": "2022-01-22", "bird": 49, "viss": 84.8, "price": 3750, "amount": 318000, "credit": 320000}, {"date": "2022-01-24", "bird": 49, "viss": 96.28, "price": 3750, "amount": 361100, "credit": 318000}, {"date": "2022-01-26", "bird": 49, "viss": 90.94, "price": 3750, "amount": 341000, "credit": 361100}, {"date": "2022-01-28", "bird": 49, "viss": 91.72, "price": 3750, "amount": 344000, "credit": 341000}, {"date": "2022-01-30", "bird": 70, "viss": 144.04, "price": 3750, "amount": 540200, "credit": 343900}]}, {"name": "Ma Cho Nwe", "closing": 351700, "discount": 0, "entries": []}, {"name": "Ma Thay Thay", "closing": 250800, "discount": 0, "entries": []}, {"name": "Ma Aye Thu", "closing": 510800, "discount": 53400, "entries": [{"date": "2022-01-02", "bird": 28, "viss": 70.86, "price": 4150, "amount": 294100, "credit": 230500}, {"date": "2022-01-04", "bird": 7, "viss": 19.52, "price": 4150, "amount": 81000, "credit": 0}, {"date": "2022-01-06", "bird": 14, "viss": 34.08, "price": 3950, "amount": 134600, "credit": 294000}, {"date": "2022-01-10", "bird": 14, "viss": 29.86, "price": 3950, "amount": 117900, "credit": 134600}, {"date": "2022-01-12", "bird": 21, "viss": 46.34, "price": 3950, "amount": 183000, "credit": 199000}, {"date": "2022-01-16", "bird": 28, "viss": 58.9, "price": 3850, "amount": 226800, "credit": 0}, {"date": "2022-01-18", "bird": 14, "viss": 29.38, "price": 3850, "amount": 113100, "credit": 0}, {"date": "2022-01-20", "bird": 49, "viss": 81.68, "price": 3850, "amount": 314500, "credit": 493000}, {"date": "2022-01-24", "bird": 28, "viss": 55.9, "price": 3750, "amount": 209600, "credit": 0}, {"date": "2022-01-26", "bird": 21, "viss": 39.84, "price": 3750, "amount": 149400, "credit": 314500}, {"date": "2022-01-28", "bird": 14, "viss": 25.46, "price": 3750, "amount": 95500, "credit": 219500}, {"date": "2022-01-30", "bird": 21, "viss": 42.64, "price": 3750, "amount": 159900, "credit": 0}]}, {"name": "Ma Nyein New", "closing": 112100, "discount": 2800, "entries": [{"date": "2022-01-12", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 15000}, {"date": "2022-01-30", "bird": 14, "viss": 27.98, "price": 3750, "amount": 104900, "credit": 67200}]}, {"name": "Ma Htay Htay Myint", "closing": 65500, "discount": 28600, "entries": [{"date": "2022-01-02", "bird": 21, "viss": 53.76, "price": 4150, "amount": 223100, "credit": 81800}, {"date": "2022-01-06", "bird": 14, "viss": 36, "price": 3950, "amount": 142200, "credit": 222600}, {"date": "2022-01-08", "bird": 14, "viss": 30.24, "price": 3950, "amount": 119400, "credit": 0}, {"date": "2022-01-10", "bird": 14, "viss": 29.16, "price": 3950, "amount": 115200, "credit": 262200}, {"date": "2022-01-12", "bird": 14, "viss": 30.12, "price": 3950, "amount": 119000, "credit": 115100}, {"date": "2022-01-14", "bird": 14, "viss": 29.1, "price": 3950, "amount": 114900, "credit": 119000}, {"date": "2022-01-18", "bird": 14, "viss": 30.18, "price": 3850, "amount": 116200, "credit": 0}, {"date": "2022-01-20", "bird": 14, "viss": 22.56, "price": 3850, "amount": 86900, "credit": 229500}, {"date": "2022-01-22", "bird": 14, "viss": 25.1, "price": 3750, "amount": 94100, "credit": 88500}]}, {"name": "Ma Swe Win", "closing": 820400, "discount": 70000, "entries": [{"date": "2022-01-02", "bird": 35, "viss": 87.26, "price": 4150, "amount": 362100, "credit": 157700}, {"date": "2022-01-06", "bird": 21, "viss": 52.92, "price": 3950, "amount": 209000, "credit": 302100}, {"date": "2022-01-08", "bird": 7, "viss": 14.22, "price": 3950, "amount": 56200, "credit": 209000}, {"date": "2022-01-10", "bird": 21, "viss": 41.4, "price": 3950, "amount": 163500, "credit": 56200}, {"date": "2022-01-12", "bird": 21, "viss": 47.62, "price": 3950, "amount": 188100, "credit": 163500}, {"date": "2022-01-14", "bird": 21, "viss": 43.94, "price": 3950, "amount": 173600, "credit": 188100}, {"date": "2022-01-16", "bird": 28, "viss": 59.52, "price": 3850, "amount": 229200, "credit": 173700}, {"date": "2022-01-18", "bird": 14, "viss": 30.12, "price": 3850, "amount": 116000, "credit": 0}, {"date": "2022-01-20", "bird": 28, "viss": 47.54, "price": 3850, "amount": 183000, "credit": 345200}, {"date": "2022-01-22", "bird": 28, "viss": 49.9, "price": 3750, "amount": 187100, "credit": 183000}, {"date": "2022-01-24", "bird": 28, "viss": 56.36, "price": 3750, "amount": 211400, "credit": 187100}, {"date": "2022-01-28", "bird": 28, "viss": 55.94, "price": 3750, "amount": 209800, "credit": 211500}, {"date": "2022-01-30", "bird": 56, "viss": 113.72, "price": 3750, "amount": 426500, "credit": 0}]}, {"name": "Ma Htay Htay", "closing": 94300, "discount": 7700, "entries": [{"date": "2022-01-04", "bird": 7, "viss": 19, "price": 4150, "amount": 78900, "credit": 59000}, {"date": "2022-01-08", "bird": 7, "viss": 14.88, "price": 3950, "amount": 58800, "credit": 0}, {"date": "2022-01-12", "bird": 7, "viss": 16.36, "price": 3950, "amount": 64600, "credit": 137700}, {"date": "2022-01-16", "bird": 7, "viss": 14.5, "price": 3850, "amount": 55800, "credit": 64600}, {"date": "2022-01-20", "bird": 7, "viss": 12.04, "price": 3850, "amount": 46400, "credit": 0}]}, {"name": "Ma Thida", "closing": 29400, "discount": 16600, "entries": [{"date": "2022-01-02", "bird": 7, "viss": 17.5, "price": 4150, "amount": 72600, "credit": 0}, {"date": "2022-01-04", "bird": 7, "viss": 18.22, "price": 4150, "amount": 75600, "credit": 113000}, {"date": "2022-01-06", "bird": 7, "viss": 17.64, "price": 3950, "amount": 69700, "credit": 76000}, {"date": "2022-01-08", "bird": 7, "viss": 14.28, "price": 3950, "amount": 56400, "credit": 0}, {"date": "2022-01-10", "bird": 7, "viss": 13.68, "price": 3950, "amount": 54000, "credit": 125900}, {"date": "2022-01-12", "bird": 7, "viss": 15.4, "price": 3950, "amount": 60800, "credit": 54000}, {"date": "2022-01-14", "bird": 7, "viss": 14.78, "price": 3950, "amount": 58400, "credit": 61000}, {"date": "2022-01-16", "bird": 7, "viss": 15.2, "price": 3850, "amount": 58500, "credit": 58400}, {"date": "2022-01-18", "bird": 7, "viss": 15.22, "price": 3850, "amount": 58600, "credit": 0}, {"date": "2022-01-20", "bird": 7, "viss": 11.82, "price": 3850, "amount": 45500, "credit": 117000}, {"date": "2022-01-22", "bird": 7, "viss": 12.3, "price": 3750, "amount": 46100, "credit": 45500}]}, {"name": "Ma Thin Khing", "closing": 59800, "discount": 35700, "entries": [{"date": "2022-01-02", "bird": 14, "viss": 34.7, "price": 4150, "amount": 144000, "credit": 101500}, {"date": "2022-01-04", "bird": 14, "viss": 35.72, "price": 4150, "amount": 148200, "credit": 144000}, {"date": "2022-01-06", "bird": 14, "viss": 34.74, "price": 3950, "amount": 137200, "credit": 148200}, {"date": "2022-01-08", "bird": 14, "viss": 28.68, "price": 3950, "amount": 113300, "credit": 137500}, {"date": "2022-01-10", "bird": 14, "viss": 27.94, "price": 3950, "amount": 110400, "credit": 113000}, {"date": "2022-01-12", "bird": 14, "viss": 29.88, "price": 3950, "amount": 118000, "credit": 110300}, {"date": "2022-01-14", "bird": 14, "viss": 29.34, "price": 3950, "amount": 115900, "credit": 118000}, {"date": "2022-01-16", "bird": 14, "viss": 29.48, "price": 3850, "amount": 113500, "credit": 115900}, {"date": "2022-01-18", "bird": 14, "viss": 32.24, "price": 3850, "amount": 124100, "credit": 113500}, {"date": "2022-01-20", "bird": 14, "viss": 23.84, "price": 3850, "amount": 91800, "credit": 124000}, {"date": "2022-01-22", "bird": 14, "viss": 24.68, "price": 3750, "amount": 92600, "credit": 91800}, {"date": "2022-01-24", "bird": 14, "viss": 25.42, "price": 3750, "amount": 95300, "credit": 92600}]}, {"name": "Ma Chaw Su", "closing": 295100, "discount": 16500, "entries": [{"date": "2022-01-14", "bird": 7, "viss": 14.44, "price": 3950, "amount": 57000, "credit": 151000}, {"date": "2022-01-16", "bird": 7, "viss": 14.3, "price": 3850, "amount": 55100, "credit": 0}, {"date": "2022-01-18", "bird": 7, "viss": 14.56, "price": 3850, "amount": 56100, "credit": 0}, {"date": "2022-01-20", "bird": 7, "viss": 12.16, "price": 3850, "amount": 46800, "credit": 168200}, {"date": "2022-01-24", "bird": 7, "viss": 13.14, "price": 3750, "amount": 49300, "credit": 0}, {"date": "2022-01-26", "bird": 7, "viss": 12.85, "price": 3750, "amount": 48200, "credit": 0}, {"date": "2022-01-28", "bird": 14, "viss": 26.6, "price": 3750, "amount": 99800, "credit": 144300}, {"date": "2022-01-30", "bird": 28, "viss": 56.56, "price": 3750, "amount": 212100, "credit": 0}]}, {"name": "Ko Zaw Moe Lwin", "closing": 50200, "discount": 0, "entries": []}, {"name": "Ma Thin", "closing": 50200, "discount": 0, "entries": []}, {"name": "Ma Yin Min Tun", "closing": 35400, "discount": 15300, "entries": [{"date": "2022-01-02", "bird": 7, "viss": 17.16, "price": 4150, "amount": 71200, "credit": 0}, {"date": "2022-01-04", "bird": 7, "viss": 16.74, "price": 4150, "amount": 69500, "credit": 64000}, {"date": "2022-01-08", "bird": 7, "viss": 14.88, "price": 3950, "amount": 58800, "credit": 69500}, {"date": "2022-01-10", "bird": 7, "viss": 13.26, "price": 3950, "amount": 52400, "credit": 58800}, {"date": "2022-01-14", "bird": 7, "viss": 14.2, "price": 3950, "amount": 56100, "credit": 52500}, {"date": "2022-01-16", "bird": 7, "viss": 14.56, "price": 3850, "amount": 56100, "credit": 56000}, {"date": "2022-01-20", "bird": 7, "viss": 11.66, "price": 3850, "amount": 44900, "credit": 56000}, {"date": "2022-01-22", "bird": 7, "viss": 11.76, "price": 3750, "amount": 44100, "credit": 44900}, {"date": "2022-01-26", "bird": 7, "viss": 12.52, "price": 3750, "amount": 47000, "credit": 0}, {"date": "2022-01-28", "bird": 7, "viss": 12.96, "price": 3750, "amount": 48600, "credit": 91100}, {"date": "2022-01-30", "bird": 7, "viss": 13.6, "price": 3750, "amount": 51000, "credit": 49000}]}, {"name": "Ko Phoe Zaw", "closing": 26200, "discount": 0, "entries": []}, {"name": "Ko Wai Phyo Aung", "closing": -2200, "discount": 0, "entries": []}, {"name": "Ko Kyaw Kyaw", "closing": 111400, "discount": 0, "entries": []}, {"name": "Ko Phoe Kwar", "closing": 219500, "discount": 39900, "entries": [{"date": "2022-01-02", "bird": 14, "viss": 34.36, "price": 4150, "amount": 142600, "credit": 92000}, {"date": "2022-01-06", "bird": 14, "viss": 33.9, "price": 3950, "amount": 133900, "credit": 143000}, {"date": "2022-01-10", "bird": 14, "viss": 29.24, "price": 3950, "amount": 115500, "credit": 134900}, {"date": "2022-01-12", "bird": 14, "viss": 28.46, "price": 3950, "amount": 112400, "credit": 115500}, {"date": "2022-01-14", "bird": 14, "viss": 28, "price": 3950, "amount": 110600, "credit": 112500}, {"date": "2022-01-16", "bird": 14, "viss": 29.76, "price": 3850, "amount": 114600, "credit": 110500}, {"date": "2022-01-18", "bird": 14, "viss": 33.3, "price": 3850, "amount": 128200, "credit": 114600}, {"date": "2022-01-22", "bird": 14, "viss": 24.36, "price": 3750, "amount": 91400, "credit": 128200}, {"date": "2022-01-24", "bird": 14, "viss": 23.52, "price": 3750, "amount": 88200, "credit": 91400}, {"date": "2022-01-26", "bird": 21, "viss": 37.6, "price": 3750, "amount": 141000, "credit": 88200}, {"date": "2022-01-28", "bird": 14, "viss": 27.06, "price": 3750, "amount": 101500, "credit": 141000}, {"date": "2022-01-30", "bird": 35, "viss": 69.16, "price": 3750, "amount": 259400, "credit": 101500}]}, {"name": "Ko Moe Tun", "closing": 0, "discount": 0, "entries": []}, {"name": "Ma Moe Moe", "closing": 111700, "discount": 29600, "entries": [{"date": "2022-01-02", "bird": 7, "viss": 16.82, "price": 4150, "amount": 69800, "credit": 126700}, {"date": "2022-01-04", "bird": 7, "viss": 16.18, "price": 4150, "amount": 67100, "credit": 0}, {"date": "2022-01-06", "bird": 7, "viss": 17.46, "price": 3950, "amount": 69000, "credit": 0}, {"date": "2022-01-08", "bird": 7, "viss": 14.52, "price": 3950, "amount": 57400, "credit": 206000}, {"date": "2022-01-10", "bird": 7, "viss": 15.46, "price": 3950, "amount": 61100, "credit": 57400}, {"date": "2022-01-12", "bird": 7, "viss": 12.98, "price": 3950, "amount": 51300, "credit": 0}, {"date": "2022-01-14", "bird": 7, "viss": 14.1, "price": 3950, "amount": 55700, "credit": 0}, {"date": "2022-01-16", "bird": 14, "viss": 28.7, "price": 3850, "amount": 110500, "credit": 168000}, {"date": "2022-01-18", "bird": 14, "viss": 29.38, "price": 3850, "amount": 113100, "credit": 110500}, {"date": "2022-01-20", "bird": 14, "viss": 23.82, "price": 3850, "amount": 91700, "credit": 113000}, {"date": "2022-01-22", "bird": 7, "viss": 12.5, "price": 3750, "amount": 46900, "credit": 0}, {"date": "2022-01-24", "bird": 7, "viss": 14.02, "price": 3750, "amount": 52600, "credit": 138700}, {"date": "2022-01-26", "bird": 14, "viss": 24.56, "price": 3750, "amount": 92100, "credit": 52600}, {"date": "2022-01-28", "bird": 14, "viss": 26.9, "price": 3750, "amount": 100900, "credit": 92000}, {"date": "2022-01-30", "bird": 14, "viss": 28.5, "price": 3750, "amount": 106900, "credit": 101000}]}, {"name": "Ma Myat Thin", "closing": 124200, "discount": 28800, "entries": [{"date": "2022-01-02", "bird": 14, "viss": 34.9, "price": 4150, "amount": 144800, "credit": 92700}, {"date": "2022-01-04", "bird": 7, "viss": 17.56, "price": 4150, "amount": 72900, "credit": 144800}, {"date": "2022-01-06", "bird": 7, "viss": 18.08, "price": 3950, "amount": 71400, "credit": 73000}, {"date": "2022-01-08", "bird": 7, "viss": 13.28, "price": 3950, "amount": 52500, "credit": 71400}, {"date": "2022-01-10", "bird": 7, "viss": 15.8, "price": 3950, "amount": 62400, "credit": 53000}, {"date": "2022-01-12", "bird": 7, "viss": 14, "price": 3950, "amount": 55300, "credit": 62000}, {"date": "2022-01-14", "bird": 7, "viss": 13.96, "price": 3950, "amount": 55100, "credit": 55300}, {"date": "2022-01-16", "bird": 7, "viss": 13.92, "price": 3850, "amount": 53600, "credit": 55100}, {"date": "2022-01-18", "bird": 7, "viss": 15.48, "price": 3850, "amount": 59600, "credit": 53500}, {"date": "2022-01-20", "bird": 7, "viss": 12.06, "price": 3850, "amount": 46400, "credit": 0}, {"date": "2022-01-22", "bird": 7, "viss": 12.06, "price": 3750, "amount": 45200, "credit": 106400}, {"date": "2022-01-24", "bird": 7, "viss": 14.38, "price": 3750, "amount": 53900, "credit": 45200}, {"date": "2022-01-26", "bird": 14, "viss": 24.14, "price": 3750, "amount": 90500, "credit": 53900}, {"date": "2022-01-28", "bird": 14, "viss": 27.72, "price": 3750, "amount": 104000, "credit": 90500}, {"date": "2022-01-30", "bird": 21, "viss": 40.92, "price": 3750, "amount": 153500, "credit": 104000}]}, {"name": "Ma Aye Than", "closing": 38500, "discount": 13100, "entries": [{"date": "2022-01-02", "bird": 7, "viss": 17.94, "price": 4150, "amount": 74500, "credit": 63600}, {"date": "2022-01-04", "bird": 7, "viss": 17.36, "price": 4150, "amount": 72000, "credit": 58000}, {"date": "2022-01-16", "bird": 7, "viss": 14.96, "price": 3850, "amount": 57600, "credit": 72000}, {"date": "2022-01-18", "bird": 7, "viss": 15.04, "price": 3850, "amount": 57900, "credit": 57600}, {"date": "2022-01-20", "bird": 7, "viss": 11.9, "price": 3850, "amount": 45800, "credit": 57900}, {"date": "2022-01-24", "bird": 7, "viss": 13.98, "price": 3750, "amount": 52400, "credit": 0}, {"date": "2022-01-26", "bird": 7, "viss": 12.62, "price": 3750, "amount": 47300, "credit": 98200}, {"date": "2022-01-28", "bird": 7, "viss": 13.4, "price": 3750, "amount": 50300, "credit": 47300}, {"date": "2022-01-30", "bird": 7, "viss": 13.84, "price": 3750, "amount": 51900, "credit": 50300}]}, {"name": "Ma Than", "closing": 79800, "discount": 19400, "entries": [{"date": "2022-01-12", "bird": 14, "viss": 29.04, "price": 3950, "amount": 114700, "credit": 60000}, {"date": "2022-01-14", "bird": 14, "viss": 28.5, "price": 3950, "amount": 112600, "credit": 115000}, {"date": "2022-01-16", "bird": 14, "viss": 28.04, "price": 3850, "amount": 108000, "credit": 112600}, {"date": "2022-01-18", "bird": 14, "viss": 33.14, "price": 3850, "amount": 127600, "credit": 108000}, {"date": "2022-01-20", "bird": 14, "viss": 22.94, "price": 3850, "amount": 88300, "credit": 0}, {"date": "2022-01-22", "bird": 14, "viss": 25.66, "price": 3750, "amount": 96200, "credit": 215900}, {"date": "2022-01-24", "bird": 14, "viss": 26.7, "price": 3750, "amount": 100100, "credit": 96200}]}, {"name": "Ma Nwe Nwe Khing", "closing": 791200, "discount": 0, "entries": []}, {"name": "Ko Kyaw Lin Aung", "closing": 1000500, "discount": 62300, "entries": [{"date": "2022-01-02", "bird": 14, "viss": 34.26, "price": 4150, "amount": 142200, "credit": 110000}, {"date": "2022-01-04", "bird": 14, "viss": 33.16, "price": 4150, "amount": 137600, "credit": 99200}, {"date": "2022-01-06", "bird": 14, "viss": 33.76, "price": 3950, "amount": 133400, "credit": 80000}, {"date": "2022-01-08", "bird": 14, "viss": 28.48, "price": 3950, "amount": 112500, "credit": 133400}, {"date": "2022-01-10", "bird": 21, "viss": 47.36, "price": 3950, "amount": 187100, "credit": 112500}, {"date": "2022-01-12", "bird": 14, "viss": 29.62, "price": 3950, "amount": 117000, "credit": 150000}, {"date": "2022-01-14", "bird": 21, "viss": 42.18, "price": 3950, "amount": 166600, "credit": 154100}, {"date": "2022-01-16", "bird": 14, "viss": 27.06, "price": 3850, "amount": 104200, "credit": 80000}, {"date": "2022-01-18", "bird": 14, "viss": 33.52, "price": 3850, "amount": 129100, "credit": 104200}, {"date": "2022-01-20", "bird": 21, "viss": 35.2, "price": 3850, "amount": 135500, "credit": 129100}, {"date": "2022-01-22", "bird": 21, "viss": 36.64, "price": 3750, "amount": 137400, "credit": 90000}, {"date": "2022-01-24", "bird": 21, "viss": 41.72, "price": 3750, "amount": 156500, "credit": 137400}, {"date": "2022-01-26", "bird": 21, "viss": 37.22, "price": 3750, "amount": 139600, "credit": 135500}, {"date": "2022-01-28", "bird": 28, "viss": 52.48, "price": 3750, "amount": 196800, "credit": 156500}, {"date": "2022-01-30", "bird": 56, "viss": 109.88, "price": 3750, "amount": 412100, "credit": 139600}]}, {"name": "Ma Khin Myint Kyi", "closing": 261500, "discount": 46600, "entries": [{"date": "2022-01-02", "bird": 28, "viss": 71.16, "price": 4150, "amount": 295300, "credit": 117500}, {"date": "2022-01-06", "bird": 14, "viss": 33.52, "price": 3950, "amount": 132400, "credit": 295300}, {"date": "2022-01-08", "bird": 21, "viss": 44.46, "price": 3950, "amount": 175600, "credit": 132400}, {"date": "2022-01-10", "bird": 21, "viss": 45.96, "price": 3950, "amount": 181500, "credit": 175600}, {"date": "2022-01-12", "bird": 21, "viss": 46.46, "price": 3950, "amount": 183500, "credit": 181500}, {"date": "2022-01-14", "bird": 21, "viss": 43.1, "price": 3950, "amount": 170200, "credit": 183500}, {"date": "2022-01-16", "bird": 21, "viss": 51.22, "price": 3850, "amount": 197200, "credit": 170200}, {"date": "2022-01-18", "bird": 21, "viss": 49.18, "price": 3850, "amount": 189300, "credit": 197200}, {"date": "2022-01-20", "bird": 21, "viss": 36.5, "price": 3850, "amount": 140500, "credit": 189300}, {"date": "2022-01-24", "bird": 21, "viss": 44.68, "price": 3750, "amount": 167600, "credit": 0}]}, {"name": "Ma Cho That", "closing": 404700, "discount": 27800, "entries": [{"date": "2022-01-02", "bird": 10, "viss": 26.62, "price": 4150, "amount": 110500, "credit": 0}, {"date": "2022-01-04", "bird": 10, "viss": 27.1, "price": 4150, "amount": 112500, "credit": 0}, {"date": "2022-01-06", "bird": 10, "viss": 24.26, "price": 3950, "amount": 95800, "credit": 199500}, {"date": "2022-01-08", "bird": 7, "viss": 13.2, "price": 3950, "amount": 52100, "credit": 0}, {"date": "2022-01-10", "bird": 10, "viss": 21.86, "price": 3950, "amount": 86300, "credit": 260400}, {"date": "2022-01-12", "bird": 10, "viss": 21.38, "price": 3950, "amount": 84500, "credit": 0}, {"date": "2022-01-14", "bird": 5, "viss": 10.42, "price": 3950, "amount": 41200, "credit": 0}, {"date": "2022-01-16", "bird": 5, "viss": 9.72, "price": 3850, "amount": 37400, "credit": 212000}, {"date": "2022-01-18", "bird": 10, "viss": 24.3, "price": 3850, "amount": 93600, "credit": 0}, {"date": "2022-01-20", "bird": 10, "viss": 17.04, "price": 3850, "amount": 65600, "credit": 0}, {"date": "2022-01-22", "bird": 10, "viss": 16.26, "price": 3750, "amount": 61000, "credit": 0}, {"date": "2022-01-24", "bird": 10, "viss": 19.36, "price": 3750, "amount": 72600, "credit": 257600}, {"date": "2022-01-26", "bird": 5, "viss": 9.42, "price": 3750, "amount": 35300, "credit": 0}, {"date": "2022-01-28", "bird": 5, "viss": 10.68, "price": 3750, "amount": 40100, "credit": 147700}, {"date": "2022-01-30", "bird": 14, "viss": 26.76, "price": 3750, "amount": 100400, "credit": 0}]}, {"name": "Ko Soe Naing", "closing": 443300, "discount": 45100, "entries": [{"date": "2022-01-05", "bird": 14, "viss": 25.46, "price": 4050, "amount": 103100, "credit": 120000}, {"date": "2022-01-08", "bird": 42, "viss": 85.46, "price": 3950, "amount": 337600, "credit": 150000}, {"date": "2022-01-10", "bird": 21, "viss": 46.22, "price": 3950, "amount": 182600, "credit": 150000}, {"date": "2022-01-12", "bird": 21, "viss": 44.2, "price": 3950, "amount": 174600, "credit": 160000}, {"date": "2022-01-14", "bird": 21, "viss": 43.32, "price": 3950, "amount": 171100, "credit": 160000}, {"date": "2022-01-18", "bird": 21, "viss": 46.96, "price": 3850, "amount": 180800, "credit": 306100}, {"date": "2022-01-22", "bird": 21, "viss": 35.68, "price": 3750, "amount": 133800, "credit": 181000}, {"date": "2022-01-28", "bird": 21, "viss": 40.04, "price": 3750, "amount": 150200, "credit": 101000}, {"date": "2022-01-30", "bird": 42, "viss": 83.5, "price": 3750, "amount": 313100, "credit": 150200}]}, {"name": "36'!A1", "closing": -1300, "discount": 1400, "entries": [{"date": "2022-01-30", "bird": 7, "viss": 14.02, "price": 3750, "amount": 52600, "credit": 52500}]}, {"name": "37'!A1", "closing": 0, "discount": 0, "entries": []}, {"name": "Ko Yan Naing Lin", "closing": -2100, "discount": 2100, "entries": [{"date": "2022-01-16", "bird": 2, "viss": 3.3, "price": 0, "amount": 0, "credit": 0}, {"date": "2022-01-18", "bird": 2, "viss": 4.26, "price": 0, "amount": 0, "credit": 0}, {"date": "2022-01-20", "bird": 2, "viss": 3.42, "price": 0, "amount": 0, "credit": 0}, {"date": "2022-01-22", "bird": 2, "viss": 3.7, "price": 3550, "amount": 13100, "credit": 0}, {"date": "2022-01-26", "bird": 2, "viss": 3.3, "price": 3550, "amount": 11700, "credit": 0}, {"date": "2022-01-28", "bird": 2, "viss": 2.9, "price": 3550, "amount": 10300, "credit": 0}]}, {"name": "39'!A1", "closing": 0, "discount": 0, "entries": []}, {"name": "40'!A1", "closing": 0, "discount": 0, "entries": []}, {"name": "Ko Moe", "closing": 0, "discount": 0, "entries": []}, {"name": "42'!A1", "closing": 0, "discount": 0, "entries": []}, {"name": "Ma Naw Li  Zar", "closing": 172200, "discount": 0, "entries": []}, {"name": "Ma Mu", "closing": 128800, "discount": 0, "entries": []}, {"name": "Ma Maw", "closing": 332600, "discount": 8200, "entries": [{"date": "2022-01-03", "bird": 35, "viss": 82.1, "price": 4150, "amount": 340700, "credit": 277500}]}, {"name": "Ma May Yi Soe", "closing": 405100, "discount": 7600, "entries": [{"date": "2022-01-03", "bird": 35, "viss": 75.5, "price": 4150, "amount": 313300, "credit": 332000}]}, {"name": "Ma Tin Zar Min", "closing": 206400, "discount": 5700, "entries": [{"date": "2022-01-03", "bird": 14, "viss": 29.52, "price": 4150, "amount": 122500, "credit": 223000}, {"date": "2022-01-05", "bird": 14, "viss": 27.96, "price": 4050, "amount": 113200, "credit": 113200}]}, {"name": "Ma Nan Soe", "closing": 47400, "discount": 2800, "entries": [{"date": "2022-01-03", "bird": 14, "viss": 27.68, "price": 4050, "amount": 112100, "credit": 135000}]}, {"name": "Ma Thi Dar Aung", "closing": 0, "discount": 0, "entries": []}, {"name": "Ma Kyu", "closing": 275600, "discount": 0, "entries": []}, {"name": "Ma Htay Lin", "closing": 378000, "discount": 11700, "entries": [{"date": "2022-01-03", "bird": 21, "viss": 44.76, "price": 4150, "amount": 185800, "credit": 185000}, {"date": "2022-01-05", "bird": 35, "viss": 72.28, "price": 4050, "amount": 292700, "credit": 297200}]}, {"name": "Ma Phyu", "closing": 97600, "discount": 0, "entries": []}, {"name": "Ma Lin Lin", "closing": 263300, "discount": 6700, "entries": [{"date": "2022-01-03", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 515000}, {"date": "2022-01-07", "bird": 30, "viss": 66.98, "price": 3950, "amount": 264600, "credit": 0}]}, {"name": "Ma Chit Thale Ton", "closing": 297800, "discount": 15200, "entries": [{"date": "2022-01-03", "bird": 35, "viss": 73.1, "price": 4150, "amount": 303400, "credit": 0}, {"date": "2022-01-07", "bird": 35, "viss": 79.26, "price": 3950, "amount": 313100, "credit": 303000}]}, {"name": "Ma Than Lin", "closing": 118000, "discount": 6100, "entries": [{"date": "2022-01-05", "bird": 14, "viss": 29.64, "price": 4050, "amount": 120000, "credit": 97200}, {"date": "2022-01-07", "bird": 14, "viss": 31.36, "price": 3950, "amount": 123900, "credit": 120000}]}, {"name": "Ma Than Aye", "closing": 292400, "discount": 14900, "entries": [{"date": "2022-01-05", "bird": 35, "viss": 70.68, "price": 4050, "amount": 286300, "credit": 146100}, {"date": "2022-01-07", "bird": 35, "viss": 77.84, "price": 3950, "amount": 307500, "credit": 286500}]}, {"name": "Ma Than Nu", "closing": 330400, "discount": 15100, "entries": [{"date": "2022-01-05", "bird": 35, "viss": 74.22, "price": 4050, "amount": 300600, "credit": 398000}, {"date": "2022-01-07", "bird": 35, "viss": 77.26, "price": 3950, "amount": 305200, "credit": 300000}]}, {"name": "Ma Than Lwin", "closing": 392700, "discount": 4600, "entries": [{"date": "2022-01-07", "bird": 21, "viss": 45.66, "price": 3950, "amount": 180400, "credit": 0}]}, {"name": "60'!A1", "closing": 0, "discount": 0, "entries": [{"date": "2022-01-18", "bird": 252, "viss": 732.08, "price": 36500, "amount": 26720900, "credit": 0}]}, {"name": "61'!A1", "closing": 0, "discount": 0, "entries": []}, {"name": "62'!A1", "closing": 0, "discount": 0, "entries": []}, {"name": "Ko Min Zaw", "closing": 0, "discount": 0, "entries": []}, {"name": "Ko Phoe Aung", "closing": 0, "discount": 0, "entries": []}, {"name": "Ko Win Naing", "closing": 0, "discount": 0, "entries": []}, {"name": "Ko Ye Thwe", "closing": 0, "discount": 0, "entries": []}, {"name": "Total", "closing": 17834700, "discount": 1102900, "entries": [{"date": "2022-01-02", "bird": 353, "viss": 891.0400000000001, "price": 0, "amount": 0, "credit": 2326400}, {"date": "2022-01-03", "bird": 154, "viss": 332.65999999999997, "price": 0, "amount": 0, "credit": 1667500}, {"date": "2022-01-04", "bird": 171, "viss": 428.62, "price": 0, "amount": 0, "credit": 1761000}, {"date": "2022-01-05", "bird": 147, "viss": 300.24, "price": 0, "amount": 0, "credit": 1171700}, {"date": "2022-01-06", "bird": 290, "viss": 717.9000000000001, "price": 0, "amount": 0, "credit": 3067200}, {"date": "2022-01-07", "bird": 170, "viss": 378.36, "price": 0, "amount": 0, "credit": 1009500}, {"date": "2022-01-08", "bird": 266, "viss": 546.8399999999999, "price": 0, "amount": 0, "credit": 2367700}, {"date": "2022-01-10", "bird": 325, "viss": 676.4200000000001, "price": 0, "amount": 0, "credit": 2794300}, {"date": "2022-01-12", "bird": 332, "viss": 705.66, "price": 0, "amount": 0, "credit": 2454300}, {"date": "2022-01-14", "bird": 327, "viss": 664.9199999999998, "price": 0, "amount": 0, "credit": 2739800}, {"date": "2022-01-16", "bird": 315, "viss": 660.6199999999999, "price": 0, "amount": 0, "credit": 2330500}, {"date": "2022-01-18", "bird": 607, "viss": 1507.76, "price": 0, "amount": 0, "credit": 2612700}, {"date": "2022-01-20", "bird": 341, "viss": 578.48, "price": 0, "amount": 0, "credit": 2821200}, {"date": "2022-01-22", "bird": 306, "viss": 533.36, "price": 0, "amount": 0, "credit": 2266900}, {"date": "2022-01-24", "bird": 324, "viss": 633.8, "price": 0, "amount": 0, "credit": 1786300}, {"date": "2022-01-26", "bird": 259, "viss": 470.33000000000004, "price": 0, "amount": 0, "credit": 1506600}, {"date": "2022-01-28", "bird": 350, "viss": 670.5799999999999, "price": 0, "amount": 0, "credit": 2786300}, {"date": "2022-01-30", "bird": 525, "viss": 1062.96, "price": 0, "amount": 0, "credit": 2012600}]}, {"name": "Debt", "closing": 0, "discount": 0, "entries": []}, {"name": "Debt", "closing": 0, "discount": 0, "entries": []}, {"name": "Debt", "closing": 0, "discount": 0, "entries": []}, {"name": "Debt", "closing": 0, "discount": 0, "entries": []}, {"name": "Breed sell", "closing": 0, "discount": 0, "entries": []}, {"name": "Breed sell", "closing": 0, "discount": 0, "entries": []}, {"name": "Breed sell", "closing": 0, "discount": 0, "entries": []}, {"name": "Breed sell", "closing": 0, "discount": 0, "entries": []}, {"name": "Dead", "closing": 0, "discount": 0, "entries": [{"date": "2022-01-02", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2000}, {"date": "2022-01-04", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1000}, {"date": "2022-01-05", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1000}, {"date": "2022-01-07", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1000}, {"date": "2022-01-08", "bird": 3, "viss": 0, "price": 0, "amount": 0, "credit": 3000}, {"date": "2022-01-10", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 4000}, {"date": "2022-01-12", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 3000}, {"date": "2022-01-14", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-18", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1000}, {"date": "2022-01-20", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-22", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2000}, {"date": "2022-01-24", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1000}, {"date": "2022-01-28", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-30", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 3000}]}, {"name": "Dead", "closing": 0, "discount": 0, "entries": [{"date": "2022-01-02", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-03", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-04", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-05", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-07", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-10", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 15000}, {"date": "2022-01-12", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-18", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-20", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-22", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-24", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-26", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-28", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-30", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}]}, {"name": "Home sell birds", "closing": 0, "discount": 0, "entries": [{"date": "2022-01-18", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 20000}, {"date": "2022-01-22", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 15000}, {"date": "2022-01-24", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 15000}, {"date": "2022-01-28", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 5000}, {"date": "2022-01-30", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 504000}]}, {"name": "Discount", "closing": 0, "discount": 0, "entries": [{"date": "2022-01-22", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 15000}, {"date": "2022-01-30", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 70000}]}, {"name": "Discount", "closing": 0, "discount": 0, "entries": []}, {"name": "Total", "closing": 0, "discount": 0, "entries": [{"date": "2022-01-02", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2319400}, {"date": "2022-01-03", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1662500}, {"date": "2022-01-04", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1755000}, {"date": "2022-01-05", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1165700}, {"date": "2022-01-06", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 3067200}, {"date": "2022-01-07", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1003500}, {"date": "2022-01-08", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2364700}, {"date": "2022-01-10", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2775300}, {"date": "2022-01-12", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2446300}, {"date": "2022-01-14", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2734800}, {"date": "2022-01-16", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2330500}, {"date": "2022-01-18", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2586700}, {"date": "2022-01-20", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2811200}, {"date": "2022-01-22", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2229900}, {"date": "2022-01-24", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1765300}, {"date": "2022-01-26", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1501600}, {"date": "2022-01-28", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 2771300}, {"date": "2022-01-30", "bird": 0, "viss": 0, "price": 0, "amount": 0, "credit": 1430600}]}]};
+let KEY = "ksh-ledger-v1-guest";
+let DB;
+const firebaseConfig={apiKey:"AIzaSyCGpIL7zFbsVZmQ9IuMq8c5PaOhMzQAQ84",authDomain:"bird-sell.firebaseapp.com",projectId:"bird-sell",storageBucket:"bird-sell.firebasestorage.app",messagingSenderId:"171364678631",appId:"1:171364678631:web:a73f0b448d4ce0c9031b42",measurementId:"G-RLQR532GE5"};
+let currentUser=null;
+let auth=null;
+let fdb=null;
+if(window.firebase){ try{ firebase.initializeApp(firebaseConfig); auth=firebase.auth(); if(firebase.firestore) fdb=firebase.firestore(); }catch(e){ console.error(e); } }
+
+function load(){
+  const s = localStorage.getItem(KEY);
+  DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(SEED));
+  if(!DB._v2){ migrate(); persist(); }
+}
+function persist(){ localStorage.setItem(KEY, JSON.stringify(DB)); scheduleCloudSave(); }
+function migrate(){
+  (DB.customers||[]).forEach(c=>{
+    if(typeof c.opening!=="number"){ c.opening = (typeof c.closing==="number")?c.closing:0; delete c.closing; }
+    const tv = c.entries.reduce((s,e)=>s+(+e.viss||0),0);
+    c.discount = tv>0 ? (c.discount||0)/tv : 0;
+  });
+  DB._v2 = true;
+}
+function saved(){ persist(); toast(tr("toast_saved")); }
+let toastT;
+function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.style.opacity=1; clearTimeout(toastT); toastT=setTimeout(()=>t.style.opacity=0,1500); }
+function round50(n){ n=Number(n)||0; return Math.floor(n/100)*100 + (n%100>=50?100:0); }
+function fmt(n){ return round50(n).toLocaleString("en-US"); }
+function exact(n){ return (Number(n)||0).toLocaleString("en-US"); }
+/* ---------- I18N ---------- */
+const KEY_LANG="ksh-ledger-lang";
+let LANG=localStorage.getItem(KEY_LANG)||"my";
+const I18N={
+  my:{
+    tab_day:"နေ့စဉ်", tab_month:"လစဉ်", tab_customer_view:"ဖောက်သည် ကြည့်ရန်", tab_all:"စုစုပေါင်း", tab_customer_manage:"ဖောက်သည် စီမံ",
+    col_customer:"ဖောက်သည်", col_bird:"ငှက်", col_viss:"ပိဿာ", col_price:"ဈေးနှုန်း", col_amount:"ငွေပေါင်း", col_credit:"ရငွေ", col_opening:"အစ လက်ကျန်", col_discount:"လျှော့ငွေ", col_discount_full:"လျှော့ငွေ (၁ပိဿာ/ကျပ်)", col_balance:"ကျန်ငွေ", col_date:"ရက်စွဲ", col_settled:"ကျန်ငွေ", col_entries:"စာရင်း", col_name:"အမည်",
+    lbl_total:"စုစုပေါင်း", lbl_sales:"ရောင်းရငွေ",
+    day_note:"ငွေပေါင်း = ပိဿာ × ဈေးနှုန်း (အလိုအလျောက်) · ရငွေ = ဖောက်သည်ထံမှ ရငွေ (ပေးငွေ) — ကျန်ငွေကို လျှော့သည် · အစ လက်ကျန် = ယခင် လက်ကျန် · လျှော့ငွေ = ၁ပိဿာလျှင် လျှော့မည့် ငွေ",
+    all_note:"အစ လက်ကျန် + ရောင်းရငွေ − ရငွေ − (ပိဿာ × လျှော့ငွေ) = ကျန်ငွေ",
+    btn_add:"+ ထည့်", btn_backup:"သိမ်းမှု ဒေါင်းလုဒ်", btn_import:"JSON ဖိုင် သွင်းရန်", btn_delall:"🗑 စာရင်းအားလုံးကိုဖြတ်မည်", btn_refresh:"ပြန်တွက်", btn_del_row:"🗑 ဖျက်",
+    ph_name:"ဖောက်သည် အမည်",
+    title_detail:"အသေးစိတ် ကြည့်ရန် နှိပ်ပါ",
+    info_day:(n,a,cr)=>`✍️ ${n} ယောက် · ရောင်းရငွေ ${fmt(a)} · ရငွေ ${fmt(cr)}`,
+    info_month_for:(mv)=>`${mv} အတွက်`,
+    info_month_pick:"လ ရွေးပါ",
+    info_customer:(c,o,disc,bal)=>`${c.name} · အစ လက်ကျန် ${fmt(o)} · လျှော့ငွေ ${fmt(disc)} (${fmt(c.discount||0)}/ပိဿာ) · ကျန် ${fmt(bal)}`,
+    toast_saved:"💾 သိမ်းပြီး", toast_deleted_row:"🗑 ဖျက်ပြီး", toast_deleted_all:"🗑 စာရင်းအားလုံး ဖျက်ပြီး", toast_added:"✅ ထည့်ပြီး", toast_name_req:"⚠️ အမည်ရိုက်ပါ", toast_exists:"⚠️ ရှိပြီးသား", toast_imported:"✅ Import ပြီး", toast_invalid:"❌ ဖိုင်မမှန်ဘူး",
+    cfm_day_del:(name,date)=>`"${name}" ရက်စွဲ ${date} ၏ စာရင်း ဖျက်မလား?`,
+    cfm_cust_del:(name,n)=>`"${name}" ကို ဖျက်မလား? (စာရင် ${n} ခု ပါသွားမယ်)`,
+    cfm_delall:"သေချာပါသလား? ဖောက်သည်အားလုံး၏ စာရင်းအားလုံး (entries) နှင့် အစ လက်ကျန်/လျှော့ငွေ များ ပျက်ကွက်သွားမယ်။ ပြန်ယူ၍မရတော့ဘူး။",
+    lang_toggle:"English",
+    tab_account:"အကောင့်", acc_signin_title:"အကောင့် ဝင်ရန်", acc_login:"ဝင်မည်", acc_register:"အကောင့်ဖွင့်", acc_google:"Google နဲ့ ဝင်မည်", acc_logout:"ထွက်မည်", acc_using:"သင့် အကောင့်နဲ့ စာရင်းကို သုံးနေသည်", acc_need_signin:"စာရင်း သုံးဖို့ အကောင့် ဝင်ပါ", acc_firebase_err:"Firebase ကို တင်သွင်း၍မရပါ (အင်တာနက် စစ်ပါ)", ph_email:"အီးမေးလ်", ph_pass:"စကားဝှက်",
+    acc_cloud_off:"☁️ Cloud မရှိပါ (Firebase မတက်ပါ)", acc_cloud_ready:"☁️ Cloud အသင့်", acc_cloud_saving:"☁️ Cloud သို့ သိမ်းနေသည်...", acc_cloud_saved:"☁️ Cloud သို့ သိမ်းပြီး", acc_cloud_err:"☁️ Cloud သိမ်း၍မရ (အင်တာနက်/ခွင့်ပြုချက် စစ်ပါ)",
+    ph_your_name:"သင့်အမည်", ph_confirm_pass:"စကားဝှက် အတည်ပြု", ph_current_pass:"လက်ရှိ စကားဝှက်", ph_new_pass:"စကားဝှက် အသစ်",
+    acc_forgot:"စကားဝှက် မေ့နေသလား?", acc_reset_sent:"စကားဝှက် ပြန်သတ်မှတ်ရန် အီးမေးလ် ပို့ပြီး", acc_enter_email:"အီးမေးလ် ရိုက်ပါ",
+    acc_change_pass:"စကားဝှက် ပြောင်းမည်", acc_pass_changed:"စကားဝှက် ပြောင်းပြီး", acc_pass_mismatch:"စကားဝှက် နှစ်ခု မတူပါ", acc_weak_pass:"စကားဝှက် အနည်းဆုံး ၆ လုံး", acc_back:"နောက်သို့",
+    acc_no_account:"အကောင့် မရှိသေးဘူးလား?", acc_have_account:"အကောင့် ရှိပြီးသားလား?", acc_guest_note:"အကောင့် မဝင်ဘဲ သုံးနေသည် — ဒီစက်မှာပဲ သိမ်းမည်။ Cloud မှာ သိမ်းချင်ရင် အကောင့် ဝင်ပါ။",
+    ph_zero:"0", ph_auto:"အလိုအလျောက်", title_input:"ဒီမှာ နှိပ်ပြီး ထည့်ပါ",
+    day_date_title:"📅 ရက်စွဲ ရွေးပါ", cust_add_title:"➕ ဖောက်သည် အသစ် ထည့်ရန်",
+    month_pick_title:"📅 လ ရွေးပါ", cust_pick_title:"👤 ဖောက်သည် ရွေးပါ", all_title:"📊 စုစုပေါင်း",
+    acc_login_title:"🔐 အကောင့် ဝင်ရန်", acc_reg_title:"🆕 အကောင့် အသစ် ဖွင့်ရန်", acc_profile_title:"👤 ကျွန်ုပ်၏ အကောင့်", acc_change_title:"🔑 စကားဝှက် ပြောင်းရန်",
+    hint_day:"✏️ အပြာရောင် အကွက်တွေ (ငှက် / ပိဿာ / ဈေးနှုန်း / ရငွေ) မှာ နှိပ်ပြီး ဂဏန်းထည့်ပါ — ငွေပေါင်း ကို ပိဿာ × ဈေးနှုန်း အလိုအလျောက် တွက်ပေးမယ်",
+    hint_cust:"✏️ အမည်ရိုက်ပြီး “+ ထည့်” နှိပ်ပါ · အစ လက်ကျန် / လျှော့ငွေ အပြာရောင်အကွက်တွေမှာ တိုက်ရိုက် ပြင်လို့ရတယ်"
+  },
+  en:{
+    tab_day:"Daily", tab_month:"Monthly", tab_customer_view:"View Customer", tab_all:"Total", tab_customer_manage:"Manage Customers",
+    col_customer:"Customer", col_bird:"Bird", col_viss:"Viss", col_price:"Price", col_amount:"Amount", col_credit:"Credit", col_opening:"Opening", col_discount:"Discount", col_discount_full:"Discount (1 Viss/Kyat)", col_balance:"Balance", col_date:"Date", col_settled:"Balance", col_entries:"Entries", col_name:"Name",
+    lbl_total:"Total", lbl_sales:"Sales",
+    day_note:"Amount = Viss × Price (auto) · Credit = Money received from customer — deducted from balance · Opening = Previous balance · Discount = Amount deducted per Viss",
+    all_note:"Opening + Sales − Credit − (Viss × Discount) = Balance",
+    btn_add:"+ Add", btn_backup:"Download Backup", btn_import:"Import JSON", btn_delall:"🗑 Delete All Records", btn_refresh:"Recalculate", btn_del_row:"🗑 Delete",
+    ph_name:"Customer Name",
+    title_detail:"Click to view detail",
+    info_day:(n,a,cr)=>`✍️ ${n} customers · Sales ${fmt(a)} · Credit ${fmt(cr)}`,
+    info_month_for:(mv)=>`For ${mv}`,
+    info_month_pick:"Select a month",
+    info_customer:(c,o,disc,bal)=>`${c.name} · Opening ${fmt(o)} · Discount ${fmt(disc)} (${fmt(c.discount||0)}/Viss) · Balance ${fmt(bal)}`,
+    toast_saved:"💾 Saved", toast_deleted_row:"🗑 Deleted", toast_deleted_all:"🗑 All records deleted", toast_added:"✅ Added", toast_name_req:"⚠️ Enter a name", toast_exists:"⚠️ Already exists", toast_imported:"✅ Imported", toast_invalid:"❌ Invalid file",
+    cfm_day_del:(name,date)=>`Delete record for "${name}" on ${date}?`,
+    cfm_cust_del:(name,n)=>`Delete "${name}"? (${n} entries will be removed)`,
+    cfm_delall:"Are you sure? All customers' records (entries) and opening/discount will be erased. This cannot be undone.",
+    lang_toggle:"မြန်မာ",
+    tab_account:"Account", acc_signin_title:"Sign in", acc_login:"Login", acc_register:"Register", acc_google:"Continue with Google", acc_logout:"Logout", acc_using:"Using this account's ledger", acc_need_signin:"Please sign in to use the ledger", acc_firebase_err:"Could not load Firebase (check internet)", ph_email:"Email", ph_pass:"Password",
+    acc_cloud_off:"☁️ Cloud unavailable (Firebase not loaded)", acc_cloud_ready:"☁️ Cloud ready", acc_cloud_saving:"☁️ Saving to cloud...", acc_cloud_saved:"☁️ Saved to cloud", acc_cloud_err:"☁️ Cloud save failed (check connection/permissions)",
+    ph_your_name:"Your name", ph_confirm_pass:"Confirm password", ph_current_pass:"Current password", ph_new_pass:"New password",
+    acc_forgot:"Forgot password?", acc_reset_sent:"Password reset email sent", acc_enter_email:"Enter your email",
+    acc_change_pass:"Change Password", acc_pass_changed:"Password changed", acc_pass_mismatch:"Passwords do not match", acc_weak_pass:"Password must be at least 6 characters", acc_back:"Back",
+    acc_no_account:"Don't have an account?", acc_have_account:"Already have an account?", acc_guest_note:"Using as a guest — saved on this device only. Sign in to save to the cloud.",
+    ph_zero:"0", ph_auto:"auto", title_input:"Click here to type",
+    day_date_title:"📅 Pick a date", cust_add_title:"➕ Add a new customer",
+    month_pick_title:"📅 Pick a month", cust_pick_title:"👤 Pick a customer", all_title:"📊 Grand total",
+    acc_login_title:"🔐 Sign in", acc_reg_title:"🆕 Create an account", acc_profile_title:"👤 My account", acc_change_title:"🔑 Change your password",
+    hint_day:"✏️ Tap the blue boxes (Bird / Viss / Price / Credit) and type a number — Amount is calculated automatically as Viss × Price",
+    hint_cust:"✏️ Type a name then press “+ Add” · Opening / Discount can be edited directly in the blue boxes"
+  }
+};
+function tr(key,...args){ const v=I18N[LANG][key]; return v===undefined?key:(typeof v==="function"?v(...args):v); }
+function applyLang(){ document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent=tr(el.dataset.i18n); }); document.querySelectorAll("[data-i18n-ph]").forEach(el=>{ el.placeholder=tr(el.dataset.i18nPh); }); const tg=document.getElementById("lang-toggle"); if(tg) tg.textContent=tr("lang_toggle"); }
+function esc(s){ return String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function monthsOf(c){ return [...new Set((c.entries||[]).map(e=>e.date.slice(0,7)))].sort(); }
+function openingAtMonth(c, m){
+  let bal = Number(c.opening)||0;
+  for(const mm of monthsOf(c)){ if(mm < m){
+    const es=(c.entries||[]).filter(e=>e.date.startsWith(mm));
+    bal = bal + es.reduce((t,e)=>t+(e.amount||0),0) - es.reduce((t,e)=>t+(e.credit||0),0) - es.reduce((t,e)=>t+(e.viss||0),0)*(c.discount||0);
+  }}
+  return bal;
+}
+function lastMonthOf(c){ const ms=monthsOf(c); return ms.length?ms[ms.length-1]:""; }
+function globalLastMonth(){ let mx=""; DB.customers.forEach(c=>monthsOf(c).forEach(m=>{ if(m>mx) mx=m; })); return mx; }
+function openCustomer(ci){
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+  document.querySelector('.tabs button[data-t="customer"]').classList.add("active");
+  document.querySelectorAll(".view").forEach(v=>v.style.display="none");
+  document.getElementById("v-customer").style.display="block";
+  customerOptions();
+  const sel=document.getElementById("customer-select");
+  if(DB.customers[ci]) sel.value=ci;
+  const c=DB.customers[ci];
+  const lm=(c&&lastMonthOf(c))||globalLastMonth()||new Date().toISOString().slice(0,7);
+  document.getElementById("customer-month").value=lm;
+  customerTable();
+}
+
+/* ---------- DAY ---------- */
+function dayTable(){
+  const d = document.getElementById("d-date").value;
+  const PH={bird:tr("ph_zero"),viss:tr("ph_zero"),price:tr("ph_zero"),amount:tr("ph_auto"),credit:tr("ph_zero")};
+  const rows = [`<tr><th>${tr("col_customer")}</th>`+
+    ["bird","viss","price","amount","credit"].map(k=>`<th class="ed">${tr("col_"+k)}</th>`).join("")+
+    `<th></th></tr>`];
+  let tA=0, tC=0, tB=0, tV=0;
+  DB.customers.forEach((c,ci)=>{
+    const e = c.entries.find(x=>x.date===d) || {};
+    tA += e.amount||0; tC += e.credit||0; tB += e.bird||0; tV += e.viss||0;
+    rows.push(`<tr data-ci="${ci}"><td class="cname" title="${tr("title_detail")}">${esc(c.name)}</td>`+
+      ["bird","viss","price","amount","credit"].map(k=>`<td class="has-input"><input class="cell${k==="amount"?" auto":""}" data-k="${k}" type="number" step="any" placeholder="${PH[k]}" title="${tr("title_input")}" value="${e[k]??""}"></td>`).join("")+
+      `<td><button class="btn btn-ok" data-del="${ci}">✕</button></td></tr>`);
+  });
+  rows.push(`<tr class="total-row"><td>${tr("lbl_total")}</td><td>${exact(tB)}</td><td>${exact(tV)}</td><td></td><td>${fmt(tA)}</td><td>${fmt(tC)}</td><td></td></tr>`);
+  const t = document.getElementById("d-table");
+  t.innerHTML = rows.join("");
+  t.querySelectorAll("input").forEach(inp=>inp.addEventListener("change", ev=>{
+    const ci = +ev.target.closest("tr").dataset.ci, k = inp.dataset.k;
+    const c = DB.customers[ci];
+    let e = c.entries.find(x=>x.date===d);
+    if(!e){ e={date:d,bird:0,viss:0,price:0,amount:0,credit:0}; c.entries.push(e); }
+    e[k] = parseFloat(inp.value)||0;
+    if(k==="viss"||k==="price"){ e.amount = +((e.viss||0)*(e.price||0)).toFixed(2); }
+    persist(); toast(tr("toast_saved")); sumDay(d);
+    const row = ev.target.closest("tr");
+    row.querySelectorAll("input").forEach(i2=>{ if(i2.dataset.k==="amount") i2.value = e.amount||""; });
+  }));
+  t.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click", ()=>{
+    const ci=+b.dataset.del;
+    if(confirm(`"${DB.customers[ci].name}" ရက်စွဲ ${d} တွင်ရဲ့ data ဖျက်မလား?`)){
+      DB.customers[ci].entries = DB.customers[ci].entries.filter(x=>x.date!==d);
+      saved2(); dayTable();
+    }
+  }));
+  sumDay(d);
+}
+function saved2(){ persist(); toast(tr("toast_deleted_row")); }
+function sumDay(d){
+  let a=0,cr=0,n=0,tB=0,tV=0;
+  DB.customers.forEach(c=>{ const e=c.entries.find(x=>x.date===d); if(e&&(e.amount||e.credit||e.bird||e.viss)){a+=e.amount||0;cr+=e.credit||0;tB+=e.bird||0;tV+=e.viss||0;n++;} });
+  document.getElementById("d-info").textContent = tr("info_day", n, a, cr);
+  // bottom total row ကိုလည်း ပြန်တွက်
+  const trow = document.querySelector("#d-table .total-row");
+  if(trow){
+    const tds = trow.querySelectorAll("td");
+    // [0]=label [1]=bird [2]=viss [3]=price [4]=amount [5]=credit [6]=btn
+    if(tds.length>=6){ tds[1].textContent=exact(tB); tds[2].textContent=exact(tV); tds[4].textContent=fmt(a); tds[5].textContent=fmt(cr); }
+  }
+}
+
+/* ---------- MONTH ---------- */
+function renderMonth(){
+  const mv = document.getElementById("m-month").value;
+  const rows=[`<tr><th>${tr("col_customer")}</th><th>${tr("col_opening")}</th><th>${tr("col_bird")}</th><th>${tr("col_viss")}</th><th>${tr("col_amount")}</th><th>${tr("col_credit")}</th><th>${tr("col_discount")}</th><th>${tr("col_balance")}</th></tr>`];
+  let tO=0,tB=0,tV=0,tA=0,tC=0,tD=0,tBal=0;
+  DB.customers.forEach((c,ci)=>{
+    const es=c.entries.filter(e=>mv && e.date.startsWith(mv));
+    if(!es.length) return;
+    const s=k=>es.reduce((t,e)=>t+(e[k]||0),0);
+    const b=s("bird"),v=s("viss"),a=s("amount"),cr=s("credit");
+    const o=openingAtMonth(c,mv);
+    const disc=v*(c.discount||0);
+    const bal=o+a-cr-disc;
+    tO+=o;tB+=b;tV+=v;tA+=a;tC+=cr;tD+=disc;tBal+=bal;
+    rows.push(`<tr data-ci="${ci}"><td class="cname" title="${tr("title_detail")}">${esc(c.name)}</td><td>${fmt(o)}</td><td>${fmt(b)}</td><td>${fmt(v)}</td><td>${fmt(a)}</td><td>${fmt(cr)}</td><td>${fmt(disc)}</td><td class="${bal<0?'neg':''}">${fmt(bal)}</td></tr>`);
+  });
+  if(tA||tC||tD){
+    rows.push(`<tr class="total-row"><td>${tr("lbl_total")}</td><td>${fmt(tO)}</td><td>${exact(tB)}</td><td>${exact(tV)}</td><td>${fmt(tA)}</td><td>${fmt(tC)}</td><td>${fmt(tD)}</td><td>${fmt(tBal)}</td></tr>`);
+  }
+  document.getElementById("m-table").innerHTML=rows.join("");
+  document.getElementById("m-info").textContent = mv ? tr("info_month_for", mv) : tr("info_month_pick");
+}
+
+/* ---------- CUSTOMER DETAIL ---------- */
+function customerOptions(){
+  const s=document.getElementById("customer-select");
+  const old=s.value;
+  s.innerHTML=DB.customers.map((c,i)=>`<option value="${i}">${esc(c.name)}</option>`).join("");
+  if(old && DB.customers[old]) s.value=old;
+  customerTable();
+}
+function customerTable(){
+  const i=+document.getElementById("customer-select").value||0, c=DB.customers[i];
+  if(!c){document.getElementById("customer-table").innerHTML="";return;}
+  const m=document.getElementById("customer-month").value;
+  const es=c.entries.filter(e=>!m||e.date.startsWith(m));
+  const o = m ? openingAtMonth(c,m) : (c.opening||0);
+  let a=0,cr=0,b=0,v=0;
+  const rows=[`<tr><th>${tr("col_date")}</th><th>${tr("col_opening")}</th><th>${tr("col_bird")}</th><th>${tr("col_viss")}</th><th>${tr("col_price")}</th><th>${tr("col_amount")}</th><th>${tr("col_credit")}</th><th>${tr("col_settled")}</th></tr>`];
+  es.sort((x,y)=>y.date.localeCompare(x.date)).forEach(e=>{a+=e.amount||0;cr+=e.credit||0;b+=e.bird||0;v+=e.viss||0;rows.push(`<tr><td>${e.date}</td><td>${fmt(o)}</td><td>${exact(e.bird)}</td><td>${exact(e.viss)}</td><td>${exact(e.price)}</td><td>${exact(e.amount)}</td><td>${exact(e.credit)}</td><td>${fmt(e.amount-e.credit)}</td></tr>`)});
+  const disc=v*(c.discount||0);
+  const bal=o+a-cr-disc;
+  rows.push(`<tr class="total-row"><td>${tr("lbl_total")}</td><td>${fmt(o)}</td><td>${exact(b)}</td><td>${exact(v)}</td><td></td><td>${exact(a)}</td><td>${exact(cr)}</td><td>${fmt(a-cr)}</td></tr>`);
+  document.getElementById("customer-table").innerHTML=rows.join("");
+  document.getElementById("customer-info").textContent=tr("info_customer", c, o, disc, bal);
+}
+
+/* ---------- ALL ---------- */
+function allTable(){
+  const rows=[`<tr><th>${tr("col_customer")}</th><th>${tr("col_opening")}</th><th>${tr("lbl_sales")}</th><th>${tr("col_credit")}</th><th>${tr("col_discount")}</th><th>${tr("col_balance")}</th></tr>`];
+  let tO=0,tA=0,tCr=0,tD=0,tB=0;
+  DB.customers.forEach((c,ci)=>{
+    const a=c.entries.reduce((s,e)=>s+(e.amount||0),0);
+    const cr=c.entries.reduce((s,e)=>s+(e.credit||0),0);
+    const v=c.entries.reduce((s,e)=>s+(e.viss||0),0);
+    const disc=v*(c.discount||0);
+    const bal=(c.opening||0)+a-cr-disc;
+    tO+=c.opening||0;tA+=a;tCr+=cr;tD+=disc;tB+=bal;
+    rows.push(`<tr data-ci="${ci}"><td class="cname" title="${tr("title_detail")}">${esc(c.name)}</td><td>${fmt(c.opening||0)}</td><td>${fmt(a)}</td><td>${fmt(cr)}</td><td>${fmt(disc)}</td><td class="${bal<0?'neg':''}">${fmt(bal)}</td></tr>`);
+  });
+  rows.push(`<tr class="total-row"><td>${tr("lbl_total")}</td><td>${fmt(tO)}</td><td>${fmt(tA)}</td><td>${fmt(tCr)}</td><td>${fmt(tD)}</td><td>${fmt(tB)}</td></tr>`);
+  document.getElementById("a-table").innerHTML=rows.join("");
+}
+
+/* ---------- CUSTOMERS ---------- */
+function custTable(){
+  const rows=[`<tr><th>${tr("col_name")}</th><th class="ed">${tr("col_opening")}</th><th class="ed">${tr("col_discount_full")}</th><th>${tr("col_entries")}</th><th></th></tr>`];
+  DB.customers.forEach((c,i)=>{
+    rows.push(`<tr><td>${esc(c.name)}</td>`+
+      ["opening","discount"].map(k=>`<td class="has-input"><input class="cell" data-ck="${k}" data-i="${i}" type="number" step="any" placeholder="${tr("ph_zero")}" title="${tr("title_input")}" value="${c[k]??""}"></td>`).join("")+
+      `<td>${c.entries.length}</td><td><button class="btn btn-ok" data-ci="${i}">${tr("btn_del_row")}</button></td></tr>`);
+  });
+  const t=document.getElementById("c-table");
+  t.innerHTML=rows.join("");
+  t.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",()=>{
+    DB.customers[+inp.dataset.i][inp.dataset.ck]=parseFloat(inp.value)||0;
+    persist(); toast(tr("toast_saved"));
+  }));
+  t.querySelectorAll("[data-ci]").forEach(b=>b.addEventListener("click",()=>{
+    const i=+b.dataset.ci;
+    if(confirm(tr("cfm_cust_del", DB.customers[i].name, DB.customers[i].entries.length))){
+      DB.customers.splice(i,1); persist(); custTable(); toast(tr("toast_deleted_row"));
+    }
+  }));
+}
+
+/* ---------- AUTH / ACCOUNT ---------- */
+function openTab(t){
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+  const btn=document.querySelector('.tabs button[data-t="'+t+'"]'); if(btn) btn.classList.add("active");
+  document.querySelectorAll(".view").forEach(v=>v.style.display="none");
+  const v=document.getElementById("v-"+t); if(v) v.style.display="block";
+  if(t==="day") dayTable();
+  if(t==="month") renderMonth();
+  if(t==="customer"){ customerOptions(); const sel=document.getElementById("customer-select"); const c=DB.customers[+sel.value]; document.getElementById("customer-month").value=(c&&lastMonthOf(c))||globalLastMonth()||new Date().toISOString().slice(0,7); customerTable(); }
+  if(t==="all") allTable();
+  if(t==="cust") { custTable(); customerOptions(); }
+}
+function showApp(){
+  // Ledger is usable with or without an account (guest = saved on this device only).
+  document.querySelectorAll('.tabs button[data-t]').forEach(b=>{ b.style.display=""; });
+}
+function renderAll(){
+  document.getElementById("d-date").value=new Date().toISOString().slice(0,10);
+  document.getElementById("m-month").value=new Date().toISOString().slice(0,7);
+  document.getElementById("customer-month").value=globalLastMonth() || new Date().toISOString().slice(0,7);
+  dayTable(); renderMonth(document.getElementById("m-month").value); allTable();
+}
+let accPage="login"; // login | register | profile | change
+function renderAccount(user){
+  const card=document.getElementById("account-card"); if(!card) return;
+  const linkStyle='style="color:var(--pri);font-weight:700"';
+  if(!user){
+    if(accPage!=="login" && accPage!=="register") accPage="login";
+    if(accPage==="login"){
+      card.innerHTML=`<div class="addbox daybox">
+        <span class="addbox-title" data-i18n="acc_login_title">${tr("acc_login_title")}</span>
+        <div class="acc-col">
+          <input type="email" id="acc-email" placeholder="${tr("ph_email")}">
+          <input type="password" id="acc-pass" placeholder="${tr("ph_pass")}">
+          <button class="btn" id="acc-login">${tr("acc_login")}</button>
+        </div>
+      </div>
+      <div class="acc-col">
+        <button class="btn" id="acc-google" style="background:#ea4335">${tr("acc_google")}</button>
+        <button class="btn" id="acc-forgot" style="background:#64748b">${tr("acc_forgot")}</button>
+        <p class="small">${tr("acc_no_account")} <a href="#" id="acc-go-register" ${linkStyle}>${tr("acc_register")}</a></p>
+        <p class="small" id="acc-msg">${tr("acc_guest_note")}</p>
+      </div>`;
+      const em=()=>document.getElementById("acc-email").value.trim();
+      const pw=()=>document.getElementById("acc-pass").value;
+      document.getElementById("acc-login").onclick=()=>accSignIn(em(),pw());
+      document.getElementById("acc-google").onclick=accGoogle;
+      document.getElementById("acc-forgot").onclick=()=>accForgot(em());
+      document.getElementById("acc-go-register").onclick=e=>{e.preventDefault();accPage="register";renderAccount(null);};
+    } else {
+      card.innerHTML=`<div class="addbox daybox">
+        <span class="addbox-title">${tr("acc_reg_title")}</span>
+        <div class="acc-col">
+          <input type="text" id="acc-name" placeholder="${tr("ph_your_name")}">
+          <input type="email" id="acc-email" placeholder="${tr("ph_email")}">
+          <input type="password" id="acc-pass" placeholder="${tr("ph_pass")}">
+          <input type="password" id="acc-pass2" placeholder="${tr("ph_confirm_pass")}">
+          <button class="btn btn-ok" id="acc-reg">${tr("acc_register")}</button>
+        </div>
+      </div>
+      <div class="acc-col">
+        <p class="small">${tr("acc_have_account")} <a href="#" id="acc-go-login" ${linkStyle}>${tr("acc_login")}</a></p>
+        <p class="small" id="acc-msg"></p>
+      </div>`;
+      document.getElementById("acc-reg").onclick=()=>accRegister(
+        document.getElementById("acc-name").value.trim(),
+        document.getElementById("acc-email").value.trim(),
+        document.getElementById("acc-pass").value,
+        document.getElementById("acc-pass2").value);
+      document.getElementById("acc-go-login").onclick=e=>{e.preventDefault();accPage="login";renderAccount(null);};
+    }
+  } else {
+    if(accPage!=="profile" && accPage!=="change") accPage="profile";
+    const name=user.displayName||user.email||user.uid;
+    if(accPage==="profile"){
+      card.innerHTML=`<div class="addbox daybox">
+        <span class="addbox-title">${tr("acc_profile_title")}</span>
+        <div class="acc-col">
+          <div class="bar" style="margin:0">
+            ${user.photoURL?`<img src="${esc(user.photoURL)}" style="width:42px;height:42px;border-radius:50%">`:""}
+            <div><div style="font-weight:700">${esc(name)}</div><div class="small">${esc(user.email||"")}</div></div>
+          </div>
+          <p class="small">${tr("acc_using")}</p>
+          <p class="small" id="acc-cloud"></p>
+          <button class="btn" id="acc-change">${tr("acc_change_pass")}</button>
+          <button class="btn btn-del" id="acc-logout">${tr("acc_logout")}</button>
+        </div>
+      </div>`;
+      updateCloudStatus();
+      document.getElementById("acc-change").onclick=()=>{accPage="change";renderAccount(user);};
+      document.getElementById("acc-logout").onclick=()=>auth.signOut();
+    } else {
+      card.innerHTML=`<div class="addbox daybox">
+        <span class="addbox-title">${tr("acc_change_title")}</span>
+        <div class="acc-col">
+          <input type="password" id="acc-cur" placeholder="${tr("ph_current_pass")}">
+          <input type="password" id="acc-new" placeholder="${tr("ph_new_pass")}">
+          <input type="password" id="acc-new2" placeholder="${tr("ph_confirm_pass")}">
+          <button class="btn" id="acc-dochange">${tr("acc_change_pass")}</button>
+        </div>
+      </div>
+      <div class="acc-col">
+        <button class="btn" id="acc-back" style="background:#64748b">${tr("acc_back")}</button>
+        <p class="small" id="acc-msg"></p>
+      </div>`;
+      document.getElementById("acc-dochange").onclick=()=>accChangePassword(
+        document.getElementById("acc-cur").value,
+        document.getElementById("acc-new").value,
+        document.getElementById("acc-new2").value);
+      document.getElementById("acc-back").onclick=()=>{accPage="profile";renderAccount(user);};
+    }
+  }
+}
+function showAccMsg(m){ const el=document.getElementById("acc-msg"); if(el) el.textContent=m; toast(m); }
+function errMsg(e){ return (e&&e.message)?e.message:(e?e.toString():"Error"); }
+function accSignIn(e,p){
+  if(!auth) return showAccMsg(tr("acc_firebase_err"));
+  if(!e||!p) return showAccMsg(tr("toast_name_req"));
+  auth.signInWithEmailAndPassword(e,p).catch(err=>showAccMsg(errMsg(err)));
+}
+function accRegister(name,e,p,p2){
+  if(!auth) return showAccMsg(tr("acc_firebase_err"));
+  if(!name||!e||!p) return showAccMsg(tr("toast_name_req"));
+  if(p!==p2) return showAccMsg(tr("acc_pass_mismatch"));
+  if(p.length<6) return showAccMsg(tr("acc_weak_pass"));
+  auth.createUserWithEmailAndPassword(e,p)
+    .then(cred=>{ if(cred&&cred.user&&name) return cred.user.updateProfile({displayName:name}); })
+    .then(()=>{ accPage="profile"; })
+    .catch(err=>showAccMsg(errMsg(err)));
+}
+function accForgot(email){
+  if(!auth) return showAccMsg(tr("acc_firebase_err"));
+  if(!email) return showAccMsg(tr("acc_enter_email"));
+  auth.sendPasswordResetEmail(email)
+    .then(()=>showAccMsg(tr("acc_reset_sent")))
+    .catch(err=>showAccMsg(errMsg(err)));
+}
+function accChangePassword(cur,neu,neu2){
+  const u=auth&&auth.currentUser;
+  if(!u) return showAccMsg(tr("acc_firebase_err"));
+  if(!cur||!neu||!neu2) return showAccMsg(tr("toast_name_req"));
+  if(neu!==neu2) return showAccMsg(tr("acc_pass_mismatch"));
+  if(neu.length<6) return showAccMsg(tr("acc_weak_pass"));
+  const cred=firebase.auth.EmailAuthProvider.credential(u.email,cur);
+  u.reauthenticateWithCredential(cred)
+    .then(()=>u.updatePassword(neu))
+    .then(()=>{ showAccMsg(tr("acc_pass_changed")); accPage="profile"; renderAccount(u); })
+    .catch(err=>showAccMsg(errMsg(err)));
+}
+function accGoogle(){
+  if(!auth) return showAccMsg(tr("acc_firebase_err"));
+  const provider=new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(err=>showAccMsg(errMsg(err)));
+}
+
+/* ---------- CLOUD SYNC (Firestore) ---------- */
+let saveTimer=null, cloudBusy=false, cloudState="";
+function ledgerDoc(uid){ return fdb.collection("ledgers").doc(uid); }
+function updateCloudStatus(){
+  const el=document.getElementById("acc-cloud"); if(!el) return;
+  if(!fdb) el.textContent=tr("acc_cloud_off");
+  else if(cloudBusy||cloudState==="pending") el.textContent=tr("acc_cloud_saving");
+  else if(cloudState==="error") el.textContent=tr("acc_cloud_err");
+  else if(cloudState==="saved") el.textContent=tr("acc_cloud_saved");
+  else el.textContent=tr("acc_cloud_ready");
+}
+function cloudSaveNow(){
+  if(!fdb||!currentUser) return Promise.resolve();
+  cloudBusy=true; updateCloudStatus();
+  return ledgerDoc(currentUser.uid).set({customers:DB.customers||[],_v2:true,updatedAt:Date.now()})
+    .then(()=>{ cloudBusy=false; cloudState="saved"; updateCloudStatus(); })
+    .catch(e=>{ cloudBusy=false; cloudState="error"; updateCloudStatus(); console.error(e); });
+}
+function scheduleCloudSave(){
+  if(!fdb||!currentUser) return;
+  cloudState="pending"; updateCloudStatus();
+  clearTimeout(saveTimer); saveTimer=setTimeout(cloudSaveNow, 900);
+}
+function cloudLoad(uid){
+  return new Promise(resolve=>{
+    if(!fdb){ resolve(false); return; }
+    ledgerDoc(uid).get().then(snap=>{
+      const d=snap.exists?snap.data():null;
+      if(d && Array.isArray(d.customers)){
+        DB={customers:d.customers,_v2:true};
+        localStorage.setItem(KEY, JSON.stringify(DB)); // local cache (no cloud re-trigger)
+        cloudState="saved"; resolve(true);
+      } else {
+        cloudSaveNow().then(()=>resolve(false)); // first sign-in: upload local/SEED data
+      }
+    }).catch(e=>{ console.error(e); cloudState="error"; updateCloudStatus(); resolve(false); });
+  });
+}
+
+/* ---------- INIT ---------- */
+document.getElementById("d-date").addEventListener("change", dayTable);
+document.getElementById("a-refresh").addEventListener("click", allTable);
+document.getElementById("m-month").addEventListener("change", renderMonth);
+document.getElementById("customer-select").addEventListener("change", customerTable);
+document.getElementById("customer-month").addEventListener("change", customerTable);
+document.getElementById("c-add").addEventListener("click", ()=>{
+  const n=document.getElementById("c-new").value.trim();
+  if(!n) return toast(tr("toast_name_req"));
+  if(DB.customers.some(c=>c.name===n)) return toast(tr("toast_exists"));
+  DB.customers.push({name:n,opening:0,discount:0,entries:[]});
+  persist(); document.getElementById("c-new").value=""; custTable(); toast(tr("toast_added"));
+});
+document.getElementById("c-delall").addEventListener("click", ()=>{
+  if(confirm(tr("cfm_delall"))){
+    DB.customers.forEach(c=>{ c.entries=[]; c.opening=0; c.discount=0; });
+    persist(); custTable(); dayTable(); allTable(); renderMonth(document.getElementById("m-month").value);
+    toast(tr("toast_deleted_all"));
+  }
+});
+document.getElementById("c-export").addEventListener("click", ()=>{
+  const blob=new Blob([JSON.stringify(DB,null,1)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="ksh-ledger-backup.json"; a.click();
+});
+document.getElementById("c-import").addEventListener("change", ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ const j=JSON.parse(rd.result); if(j.customers){ DB=j; migrate(); persist(); custTable(); dayTable(); allTable(); renderMonth(document.getElementById("m-month").value); toast(tr("toast_imported")); } }catch(e){ toast(tr("toast_invalid")); } };
+  rd.readAsText(f);
+});
+document.querySelectorAll(".tabs button[data-t]").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".tabs button[data-t]").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  document.querySelectorAll(".view").forEach(v=>v.style.display="none");
+  const view=document.getElementById("v-"+b.dataset.t); if(view) view.style.display="block";
+  if(b.dataset.t==="day") dayTable();
+  if(b.dataset.t==="month") renderMonth();
+  if(b.dataset.t==="customer"){ customerOptions(); const sel=document.getElementById("customer-select"); const c=DB.customers[+sel.value]; document.getElementById("customer-month").value=(c&&lastMonthOf(c))||globalLastMonth()||new Date().toISOString().slice(0,7); customerTable(); }
+  if(b.dataset.t==="all") allTable();
+  if(b.dataset.t==="cust") { custTable(); customerOptions(); }
+  if(b.dataset.t==="account") renderAccount(currentUser);
+}));
+// Click customer name in any table to open customer detail
+document.addEventListener("click", ev=>{
+  const td=ev.target.closest(".cname"); if(!td) return;
+  const tr=td.closest("tr"); if(!tr||tr.dataset.ci===undefined) return;
+  openCustomer(+tr.dataset.ci);
+});
+document.getElementById("d-date").value = new Date().toISOString().slice(0,10);
+document.getElementById("m-month").value = new Date().toISOString().slice(0,7);
+applyLang();
+if(auth){
+  auth.onAuthStateChanged(user=>{
+    currentUser=user;
+    if(user){
+      // Anything typed as a guest is carried over, so it is not lost on the first sign-in.
+      const guestDB = (KEY==="ksh-ledger-v1-guest") ? DB : null;
+      KEY="ksh-ledger-v1-"+user.uid;
+      const alreadySaved = !!localStorage.getItem(KEY);
+      load();
+      if(!alreadySaved && guestDB && guestDB.customers && guestDB.customers.length) DB=guestDB;
+      accPage="profile"; renderAll(); showApp(); renderAccount(user);
+      cloudLoad(user.uid).then(()=>{ renderAll(); renderAccount(user); });
+    }
+    else { KEY="ksh-ledger-v1-guest"; accPage="login"; load(); renderAll(); showApp(); renderAccount(null); }
+  });
+} else {
+  KEY="ksh-ledger-v1-guest"; load(); renderAll(); showApp(); renderAccount(null);
+  const c=document.getElementById("account-card"); if(c) c.innerHTML+='<p class="small">'+tr("acc_firebase_err")+'</p>';
+}
+document.getElementById("lang-toggle").addEventListener("click", ()=>{
+  LANG = (LANG==="my") ? "en" : "my";
+  localStorage.setItem(KEY_LANG, LANG);
+  applyLang();
+  dayTable(); renderMonth(document.getElementById("m-month").value); allTable(); custTable();
+  if(document.querySelector('.tabs button[data-t="customer"]').classList.contains("active")) customerTable();
+  renderAccount(currentUser);
+});
+</script>
+</body>
+</html>
